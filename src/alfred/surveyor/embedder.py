@@ -168,15 +168,28 @@ class Embedder:
 
         Returns None if collection is empty.
         """
-        results = self.milvus.query(
-            collection_name=self.collection_name,
-            filter="",
-            output_fields=["id", "embedding"],
-            limit=100_000,
-        )
-        if not results:
+        PAGE_SIZE = 16_000  # Milvus caps query limit at 16,384
+        all_results: list[dict] = []
+        offset = 0
+
+        while True:
+            page = self.milvus.query(
+                collection_name=self.collection_name,
+                filter="",
+                output_fields=["id", "embedding"],
+                limit=PAGE_SIZE,
+                offset=offset,
+            )
+            if not page:
+                break
+            all_results.extend(page)
+            if len(page) < PAGE_SIZE:
+                break
+            offset += PAGE_SIZE
+
+        if not all_results:
             return None
 
-        paths = [r["id"] for r in results]
-        vectors = np.array([r["embedding"] for r in results], dtype=np.float32)
+        paths = [r["id"] for r in all_results]
+        vectors = np.array([r["embedding"] for r in all_results], dtype=np.float32)
         return paths, vectors
