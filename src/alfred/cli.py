@@ -195,6 +195,8 @@ def cmd_status(args: argparse.Namespace) -> None:
 def cmd_curator(args: argparse.Namespace) -> None:
     import asyncio
     raw = _load_unified_config(args.config)
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     _setup_logging_from_config(raw)
     from alfred.curator.config import load_from_unified
     config = load_from_unified(raw)
@@ -208,6 +210,8 @@ def cmd_curator(args: argparse.Namespace) -> None:
 
 def cmd_janitor(args: argparse.Namespace) -> None:
     raw = _load_unified_config(args.config)
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     _setup_logging_from_config(raw)
     from alfred.janitor.config import load_from_unified
     config = load_from_unified(raw)
@@ -236,6 +240,8 @@ def cmd_janitor(args: argparse.Namespace) -> None:
 
 def cmd_distiller(args: argparse.Namespace) -> None:
     raw = _load_unified_config(args.config)
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     _setup_logging_from_config(raw)
     from alfred.distiller.config import load_from_unified
     config = load_from_unified(raw)
@@ -279,6 +285,11 @@ def cmd_exec(args: argparse.Namespace) -> None:
     from alfred.vault.scope import SCOPE_RULES
 
     raw = _load_unified_config(args.config)
+    from alfred.vault.custom_types import (
+        custom_types_json_for_raw,
+        extract_learn_subfolder_from_raw,
+        learn_types_json_for_raw,
+    )
     vault_cfg = raw.get("vault", {})
     vault_path = str(Path(vault_cfg.get("path", "./vault")).resolve())
 
@@ -293,6 +304,9 @@ def cmd_exec(args: argparse.Namespace) -> None:
         **os.environ,
         "ALFRED_VAULT_PATH": vault_path,
         "ALFRED_VAULT_SESSION": session_file,
+        "ALFRED_CUSTOM_TYPES_JSON": custom_types_json_for_raw(raw),
+        "ALFRED_LEARN_TYPES_JSON": learn_types_json_for_raw(raw),
+        "ALFRED_LEARN_SUBFOLDER": extract_learn_subfolder_from_raw(raw),
     }
     if scope:
         env["ALFRED_VAULT_SCOPE"] = scope
@@ -376,6 +390,8 @@ def cmd_process(args: argparse.Namespace) -> None:
     """Batch-process all unprocessed inbox files with progress display."""
     import asyncio
     raw = _load_unified_config(args.config)
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     _setup_logging_from_config(raw)
     from alfred.curator.config import load_from_unified
     config = load_from_unified(raw)

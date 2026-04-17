@@ -7,6 +7,10 @@ import signal
 import sys
 from pathlib import Path
 
+import yaml
+
+from alfred.vault.custom_types import install_custom_types_for_process
+
 from .config import load_config
 from .daemon import run
 from .utils import setup_logging, get_logger
@@ -14,6 +18,13 @@ from .utils import setup_logging, get_logger
 
 def main() -> None:
     config_path = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
+
+    try:
+        raw = yaml.safe_load(Path(config_path).read_text(encoding="utf-8")) or {}
+        if isinstance(raw, dict):
+            install_custom_types_for_process(raw)
+    except (OSError, yaml.YAMLError):
+        pass
 
     config = load_config(config_path)
     setup_logging(level=config.logging.level, log_file=config.logging.file)

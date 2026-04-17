@@ -130,6 +130,8 @@ async def _call_llm(
     config: CuratorConfig,
     session_path: str,
     stage_label: str,
+    *,
+    custom_types_env: str = "[]",
 ) -> str:
     """Make an isolated OpenClaw call and return stdout.
 
@@ -177,6 +179,7 @@ async def _call_llm(
         "ALFRED_VAULT_PATH": str(config.vault.vault_path),
         "ALFRED_VAULT_SCOPE": "curator",
         "ALFRED_VAULT_SESSION": session_path,
+        "ALFRED_CUSTOM_TYPES_JSON": custom_types_env,
     }
 
     log.info(
@@ -239,6 +242,8 @@ async def _stage1_analyze(
     vault_context_text: str,
     config: CuratorConfig,
     session_path: str,
+    *,
+    custom_types_env: str = "[]",
 ) -> tuple[str, list[dict]]:
     """Stage 1: LLM creates a note and returns an entity manifest.
 
@@ -271,7 +276,10 @@ async def _stage1_analyze(
     manifest: list[dict] = []
 
     for attempt in range(1, max_attempts + 1):
-        stdout = await _call_llm(prompt, config, session_path, "s1-analyze")
+        stdout = await _call_llm(
+            prompt, config, session_path, "s1-analyze",
+            custom_types_env=custom_types_env,
+        )
 
         # Find the note that was created via mutation log (only on first attempt)
         if not note_path:
@@ -488,6 +496,8 @@ async def _stage4_enrich(
     manifest: list[dict],
     config: CuratorConfig,
     session_path: str,
+    *,
+    custom_types_env: str = "[]",
 ) -> list[str]:
     """Stage 4: Enrich each entity with LLM. Returns list of enriched entity paths."""
     template = _load_stage_prompt("stage4_enrich.md")
@@ -553,7 +563,10 @@ async def _stage4_enrich(
         safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', entity_name.replace(' ', '-'))[:30]
         stage_label = f"s4-{entity_type}-{safe_name}"
 
-        await _call_llm(prompt, config, session_path, stage_label)
+        await _call_llm(
+            prompt, config, session_path, stage_label,
+            custom_types_env=custom_types_env,
+        )
         enriched.append(entity_rel_path)
 
         log.info("pipeline.s4_enriched", entity=entity_key)
@@ -573,6 +586,8 @@ async def run_pipeline(
     vault_context_text: str,
     config: CuratorConfig,
     session_path: str,
+    *,
+    custom_types_env: str = "[]",
 ) -> PipelineResult:
     """Run the 4-stage curator pipeline on a single inbox file.
 
@@ -598,6 +613,7 @@ async def run_pipeline(
         vault_context_text=vault_context_text,
         config=config,
         session_path=session_path,
+        custom_types_env=custom_types_env,
     )
     result.note_path = note_path
 
@@ -651,6 +667,7 @@ async def run_pipeline(
         manifest=manifest,
         config=config,
         session_path=session_path,
+        custom_types_env=custom_types_env,
     )
     result.entities_enriched = enriched
 

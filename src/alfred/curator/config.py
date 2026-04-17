@@ -34,6 +34,7 @@ class VaultConfig:
     inbox_dir: str = "inbox"
     processed_dir: str = "inbox/processed"
     ignore_dirs: list[str] = field(default_factory=lambda: [".obsidian"])
+    custom_record_types: list[Any] = field(default_factory=list)
 
     @property
     def vault_path(self) -> Path:
@@ -153,6 +154,7 @@ def load_from_unified(raw: dict[str, Any]) -> CuratorConfig:
     vault_raw["processed_dir"] = tool.get("processed_dir", "inbox/processed")
     # Strip keys that don't exist in our VaultConfig
     vault_raw.pop("ignore_files", None)
+    vault_raw.pop("learn_subfolder", None)
     # Map unified logging.dir -> logging.file
     log_raw = dict(raw.get("logging", {}))
     log_dir = log_raw.pop("dir", "./data")

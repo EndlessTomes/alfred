@@ -29,6 +29,8 @@ def _silence_stdio(log_file: str | None = None) -> None:
 
 def _run_curator(raw: dict[str, Any], skills_dir: str, suppress_stdout: bool = False) -> None:
     """Curator daemon process entry point."""
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     log_cfg = raw.get("logging", {})
     log_file = f"{log_cfg.get('dir', './data')}/curator.log"
     if suppress_stdout:
@@ -43,6 +45,8 @@ def _run_curator(raw: dict[str, Any], skills_dir: str, suppress_stdout: bool = F
 
 def _run_janitor(raw: dict[str, Any], skills_dir: str, suppress_stdout: bool = False) -> None:
     """Janitor watch daemon process entry point."""
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     log_cfg = raw.get("logging", {})
     log_file = f"{log_cfg.get('dir', './data')}/janitor.log"
     if suppress_stdout:
@@ -60,6 +64,8 @@ def _run_janitor(raw: dict[str, Any], skills_dir: str, suppress_stdout: bool = F
 
 def _run_distiller(raw: dict[str, Any], skills_dir: str, suppress_stdout: bool = False) -> None:
     """Distiller watch daemon process entry point."""
+    from alfred.vault.custom_types import install_custom_types_for_process
+    install_custom_types_for_process(raw)
     log_cfg = raw.get("logging", {})
     log_file = f"{log_cfg.get('dir', './data')}/distiller.log"
     if suppress_stdout:

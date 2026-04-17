@@ -11,6 +11,9 @@ KNOWN_TYPES: set[str] = {
     "contradiction", "synthesis",
 }
 
+# Frozen snapshot used to reject custom type ids that shadow built-ins
+BUILTIN_KNOWN_TYPES: frozenset[str] = frozenset(KNOWN_TYPES)
+
 LEARN_TYPES: set[str] = {
     "assumption", "decision", "constraint", "contradiction", "synthesis",
 }

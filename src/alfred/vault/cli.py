@@ -8,6 +8,11 @@ import os
 import sys
 from pathlib import Path
 
+from .custom_types import (
+    bootstrap_schema_from_environment,
+    extract_custom_type_specs_from_raw,
+    write_template_files,
+)
 from .mutation_log import log_mutation
 from .ops import VaultError, vault_context, vault_create, vault_delete, vault_edit, vault_list, vault_move, vault_read, vault_search
 from .scope import ScopeError, check_scope
@@ -210,6 +215,42 @@ def cmd_move(args: argparse.Namespace) -> None:
         _error(str(e))
 
 
+def cmd_generate_custom_templates(args: argparse.Namespace) -> None:
+    """Create ``_templates/{type}.md`` stubs from ``vault.custom_record_types`` in config."""
+    import yaml
+
+    cfg_name = getattr(args, "config", None) or "config.yaml"
+    path = Path(cfg_name)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    if not path.is_file():
+        _error(f"Config not found: {path}")
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as e:
+        _error(f"Could not read config: {e}")
+
+    if not isinstance(raw, dict):
+        _error("Config must be a YAML mapping")
+
+    vault = raw.get("vault", {})
+    vault_path = Path(vault.get("path", "./vault"))
+    if not vault_path.is_absolute():
+        vault_path = (path.parent / vault_path).resolve()
+
+    if not vault_path.is_dir():
+        _error(f"Vault path is not a directory: {vault_path}")
+
+    specs = extract_custom_type_specs_from_raw(raw)
+    if not specs:
+        _output({"message": "No vault.custom_record_types defined — nothing to do.", "written": []})
+        return
+
+    written = write_template_files(vault_path, specs)
+    _output({"message": f"Wrote {len(written)} template(s) under _templates/", "written": written, "vault": str(vault_path)})
+
+
 def cmd_delete(args: argparse.Namespace) -> None:
     scope = _scope()
     try:
@@ -274,9 +315,17 @@ def build_vault_parser(subparsers: argparse._SubParsersAction) -> None:
     p = vault_sub.add_parser("delete", help="Delete a vault record")
     p.add_argument("path", help="Relative path to the record")
 
+    vault_sub.add_parser(
+        "generate-custom-templates",
+        help="Write _templates/*.md stubs for types in vault.custom_record_types",
+    )
+
 
 def handle_vault_command(args: argparse.Namespace) -> None:
     """Dispatch to the correct vault subcommand handler."""
+    if args.vault_cmd != "generate-custom-templates":
+        bootstrap_schema_from_environment()
+
     handlers = {
         "read": cmd_read,
         "search": cmd_search,
@@ -286,6 +335,7 @@ def handle_vault_command(args: argparse.Namespace) -> None:
         "edit": cmd_edit,
         "move": cmd_move,
         "delete": cmd_delete,
+        "generate-custom-templates": cmd_generate_custom_templates,
     }
     handler = handlers.get(args.vault_cmd)
     if handler:

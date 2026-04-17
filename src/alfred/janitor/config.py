@@ -144,13 +144,17 @@ def load_from_unified(raw: dict[str, Any]) -> JanitorConfig:
     """Build JanitorConfig from a pre-loaded unified config dict."""
     raw = _substitute_env(raw)
     tool = raw.get("janitor", {})
+    vault_raw = dict(raw.get("vault", {}))
+    # Declared for Curator / vault validation only — not part of JanitorConfig.vault
+    vault_raw.pop("custom_record_types", None)
+    vault_raw.pop("learn_subfolder", None)
     # Map unified logging.dir -> logging.file
     log_raw = dict(raw.get("logging", {}))
     log_dir = log_raw.pop("dir", "./data")
     if "file" not in log_raw:
         log_raw["file"] = f"{log_dir}/janitor.log"
     return _build(JanitorConfig, {
-        "vault": raw.get("vault", {}),
+        "vault": vault_raw,
         "agent": raw.get("agent", {}),
         "sweep": tool.get("sweep", {}),
         "state": tool.get("state", {}),

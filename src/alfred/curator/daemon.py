@@ -30,7 +30,7 @@ from .writer import diff_vault, mark_processed, snapshot_vault
 log = get_logger(__name__)
 
 
-def _load_skill(skills_dir: Path) -> str:
+def _load_skill(skills_dir: Path, appendix: str = "") -> str:
     """Load SKILL.md and all reference templates into a single text block."""
     skill_path = skills_dir / "vault-curator" / "SKILL.md"
     if not skill_path.exists():
@@ -46,7 +46,24 @@ def _load_skill(skills_dir: Path) -> str:
             content = ref_file.read_text(encoding="utf-8")
             parts.append(f"\n---\n### Reference Template: {ref_file.name}\n```\n{content}\n```")
 
+    if appendix.strip():
+        parts.append(appendix)
     return "\n".join(parts)
+
+
+def prepare_curator_skill_and_schema(config: CuratorConfig, skills_dir: Path) -> tuple[str, str]:
+    """Apply custom record types to schema and build skill text + env JSON for vault subprocesses."""
+    from alfred.vault.custom_types import (
+        apply_custom_type_specs,
+        build_curator_prompt_appendix,
+        custom_types_env_json,
+        parse_custom_type_specs,
+    )
+
+    specs = parse_custom_type_specs(config.vault.custom_record_types)
+    apply_custom_type_specs(specs)
+    appendix = build_curator_prompt_appendix(specs)
+    return _load_skill(skills_dir, appendix), custom_types_env_json(specs)
 
 
 def _create_backend(config: CuratorConfig) -> BaseBackend:
@@ -78,6 +95,8 @@ async def _process_file(
     skill_text: str,
     config: CuratorConfig,
     state_mgr: StateManager,
+    *,
+    custom_types_env: str = "[]",
 ) -> None:
     """Process a single inbox file through the full pipeline."""
     filename = inbox_file.name
@@ -107,6 +126,7 @@ async def _process_file(
             vault_context_text=context_text,
             config=config,
             session_path=session_path,
+            custom_types_env=custom_types_env,
         )
 
         mutations = read_mutations(session_path)
@@ -132,6 +152,7 @@ async def _process_file(
                 "ALFRED_VAULT_PATH": vault_path_str,
                 "ALFRED_VAULT_SCOPE": "curator",
                 "ALFRED_VAULT_SESSION": session_path,
+                "ALFRED_CUSTOM_TYPES_JSON": custom_types_env,
             }
         else:
             before = snapshot_vault(config.vault.vault_path, ignore_dirs=config.vault.ignore_dirs)
@@ -191,8 +212,7 @@ async def run(config: CuratorConfig, skills_dir: Path) -> None:
     """Main daemon entry point."""
     log.info("daemon.starting", backend=config.agent.backend)
 
-    # Load skill text
-    skill_text = _load_skill(skills_dir)
+    skill_text, custom_types_env = prepare_curator_skill_and_schema(config, skills_dir)
     if not skill_text:
         log.warning("daemon.no_skill", msg="Running without SKILL.md — agent may not produce correct output")
 
@@ -213,7 +233,10 @@ async def run(config: CuratorConfig, skills_dir: Path) -> None:
     unprocessed = watcher.full_scan()
     for inbox_file in unprocessed:
         try:
-            await _process_file(inbox_file, backend, skill_text, config, state_mgr)
+            await _process_file(
+                inbox_file, backend, skill_text, config, state_mgr,
+                custom_types_env=custom_types_env,
+            )
         except Exception:
             log.exception("daemon.process_error", file=inbox_file.name)
 
@@ -248,7 +271,10 @@ async def run(config: CuratorConfig, skills_dir: Path) -> None:
                     continue
                 _processing.add(str(inbox_file))
                 try:
-                    await _process_file(inbox_file, backend, skill_text, config, state_mgr)
+                    await _process_file(
+                        inbox_file, backend, skill_text, config, state_mgr,
+                        custom_types_env=custom_types_env,
+                    )
                 except Exception:
                     log.exception("daemon.process_error", file=inbox_file.name)
                 finally:

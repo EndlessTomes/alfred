@@ -1,7 +1,21 @@
 vault:
   path: "./vault"
+  # Optional: move learning records into a shared subfolder (e.g. learning/decision).
+  # Applies to every type listed under distiller.extraction.learn_types.
+  # learn_subfolder: "learning"
   ignore_dirs: ["_templates", "_bases", "_docs", ".obsidian", "view"]
   ignore_files: [".gitkeep"]
+  # Optional: extra entity types (Curator routes + ``alfred vault create`` validation).
+  # Each ``id`` becomes a ``type:`` value; files live under ``directory/`` at vault root.
+  # Use ``statuses: []`` for no allowed statuses (same as built-in ``event``); omit
+  # ``statuses`` (or set null) to allow any status string.
+  # Run ``alfred vault generate-custom-templates`` once to add ``_templates/{id}.md`` stubs.
+  # custom_record_types:
+  #   - id: recipe
+  #     directory: recipes
+  #     statuses: [draft, active, archived]
+  #   - id: book
+  #     directory: books
 
 agent:
   backend: "claude"

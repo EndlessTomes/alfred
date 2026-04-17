@@ -147,13 +147,16 @@ def load_from_unified(raw: dict[str, Any]) -> DistillerConfig:
     """Build DistillerConfig from a pre-loaded unified config dict."""
     raw = _substitute_env(raw)
     tool = raw.get("distiller", {})
+    vault_raw = dict(raw.get("vault", {}))
+    vault_raw.pop("custom_record_types", None)
+    vault_raw.pop("learn_subfolder", None)
     # Map unified logging.dir -> logging.file
     log_raw = dict(raw.get("logging", {}))
     log_dir = log_raw.pop("dir", "./data")
     if "file" not in log_raw:
         log_raw["file"] = f"{log_dir}/distiller.log"
     return _build(DistillerConfig, {
-        "vault": raw.get("vault", {}),
+        "vault": vault_raw,
         "agent": raw.get("agent", {}),
         "extraction": tool.get("extraction", {}),
         "state": tool.get("state", {}),

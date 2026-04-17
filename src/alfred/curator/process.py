@@ -220,6 +220,8 @@ async def _process_one(
     state_lock: asyncio.Lock,
     tui: ProcessingTUI,
     live: Live,
+    *,
+    custom_types_env: str = "[]",
 ) -> None:
     """Process a single file and update TUI. Designed for concurrent use."""
     from .daemon import _process_file
@@ -232,7 +234,10 @@ async def _process_one(
     result = ProcessingResult(filename=filename, success=False)
 
     try:
-        await _process_file(inbox_file, backend, skill_text, config, state_mgr)
+        await _process_file(
+            inbox_file, backend, skill_text, config, state_mgr,
+            custom_types_env=custom_types_env,
+        )
 
         async with state_lock:
             entry = state_mgr.state.processed.get(filename)
@@ -299,7 +304,7 @@ async def run_batch(
     concurrency: int = 4,
 ) -> BatchStats:
     """Batch-process all unprocessed inbox files with a Rich TUI."""
-    from .daemon import _create_backend, _load_skill
+    from .daemon import _create_backend, prepare_curator_skill_and_schema
     from .state import StateManager
     from .watcher import InboxWatcher
 
@@ -319,8 +324,7 @@ async def run_batch(
         )
         concurrency = 1
 
-    # Load skill
-    skill_text = _load_skill(skills_dir)
+    skill_text, custom_types_env = prepare_curator_skill_and_schema(config, skills_dir)
 
     # Create one backend per worker for full isolation
     backends = [_create_backend(config) for _ in range(concurrency)]
@@ -381,6 +385,7 @@ async def run_batch(
                 return
             await _process_one(
                 inbox_file, backend, skill_text, config, state_mgr, state_lock, tui, live,
+                custom_types_env=custom_types_env,
             )
 
     try:
